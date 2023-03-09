@@ -11,7 +11,7 @@ import Foundation
 public enum NFCViewDisplayMessage {
     case requestPresentPassport
     case authenticatingWithPassport(Int)
-    case readingDataGroupProgress(DataGroupId, Int)
+    case readingDataGroupProgress(Int)
     case error(NFCPassportReaderError)
     case successfulRead
 }
@@ -25,9 +25,9 @@ extension NFCViewDisplayMessage {
             case .authenticatingWithPassport(let progress):
                 let progressString = handleProgress(percentualProgress: progress)
                 return "Authenticating with passport.....\n\n\(progressString)"
-            case .readingDataGroupProgress(let dataGroup, let progress):
+            case .readingDataGroupProgress(let progress):
                 let progressString = handleProgress(percentualProgress: progress)
-                return "Reading \(dataGroup).....\n\n\(progressString)"
+                return "Reading user data.....\n\n\(progressString)"
             case .error(let tagError):
                 switch tagError {
                     case NFCPassportReaderError.TagNotValid:
@@ -37,14 +37,14 @@ extension NFCViewDisplayMessage {
                     case NFCPassportReaderError.ConnectionError:
                         return "Connection error. Please try again."
                     case NFCPassportReaderError.AuthenticationFailed:
-                        return "MRZ or CAN Key not valid for this document."
+                        return "Invalid CAN Key for this document."
                     case NFCPassportReaderError.ResponseError(let description, let sw1, let sw2):
-                        return "Sorry, there was a problem reading the passport. \(description) - (0x\(sw1), 0x\(sw2)"
+                        return "Sorry, there was a problem reading the document. \(description) - (0x\(sw1), 0x\(sw2)"
                     default:
-                        return "Sorry, there was a problem reading the passport. Please try again"
+                        return "Sorry, there was a problem reading the document. Please try again"
                 }
             case .successfulRead:
-                return "Passport read successfully"
+                return "Identity card read successfully"
         }
     }
     

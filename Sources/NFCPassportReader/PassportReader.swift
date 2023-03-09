@@ -198,7 +198,7 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 
                 tagReader.progress = { [unowned self] (progress) in
                     if let dgId = self.currentlyReadingDataGroup {
-                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(dgId, progress) )
+                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(progress) )
                     } else {
                         self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport(progress) )
                     }
@@ -427,57 +427,12 @@ extension PassportReader {
 
     func readDataGroups( tagReader: TagReader ) async throws {
         
-        // Read COM
-        var DGsToRead = [DataGroupId]()
-
-        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(.COM, 0) )
-        if let com = try await readDataGroup(tagReader:tagReader, dgId:.COM) as? COM {
-            self.passport.addDataGroup( .COM, dataGroup:com )
-        
-            // SOD and COM shouldn't be present in the DG list but just in case (worst case here we read the sod twice)
-            DGsToRead = [.SOD] + com.dataGroupsPresent.map { DataGroupId.getIDFromName(name:$0) }
-            DGsToRead.removeAll { $0 == .COM }
-        }
-        
-        if DGsToRead.contains( .DG14 ) {
-            DGsToRead.removeAll { $0 == .DG14 }
-            
-            if !skipCA {
-                // Do Chip Authentication
-                if let dg14 = try await readDataGroup(tagReader:tagReader, dgId:.DG14) as? DataGroup14 {
-                    self.passport.addDataGroup( .DG14, dataGroup:dg14 )
-                    let caHandler = ChipAuthenticationHandler(dg14: dg14, tagReader: tagReader)
-                     
-                    if caHandler.isChipAuthenticationSupported {
-                        do {
-                            // Do Chip authentication and then continue reading datagroups
-                            try await caHandler.doChipAuthentication()
-                            self.passport.chipAuthenticationStatus = .success
-                        } catch {
-                            Log.info( "Chip Authentication failed - re-establishing BAC")
-                            self.passport.chipAuthenticationStatus = .failed
-                            
-                            // Failed Chip Auth, need to re-establish BAC
-                            try await doBACAuthentication(tagReader: tagReader)
-                        }
-                    }
-                }
-            }
-        }
-
-        // If we are skipping secure elements then remove .DG3 and .DG4
-        if self.skipSecureElements {
-            DGsToRead = DGsToRead.filter { $0 != .DG3 && $0 != .DG4 }
-        }
-
-        if self.readAllDatagroups != true {
-            DGsToRead = DGsToRead.filter { dataGroupsToRead.contains($0) }
-        }
-        for dgId in DGsToRead {
-            self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(dgId, 0) )
-            if let dg = try await readDataGroup(tagReader:tagReader, dgId:dgId) {
-                self.passport.addDataGroup( dgId, dataGroup:dg )
-            }
+        // Read only DG1
+        var dataGroup1 = DataGroupId.DG1
+                
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(0))
+        if let dg = try await readDataGroup(tagReader:tagReader, dgId: dataGroup1) {
+            self.passport.addDataGroup(dataGroup1, dataGroup:dg)
         }
     }
     
@@ -487,7 +442,7 @@ extension PassportReader {
         Log.info( "Reading tag - \(dgId)" )
         var readAttempts = 0
         
-        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(dgId, 0) )
+        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(0) )
 
         repeat {
             do {
