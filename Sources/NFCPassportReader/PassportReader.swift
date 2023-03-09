@@ -332,9 +332,9 @@ extension PassportReader {
         
         self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.signingChallenge)
         
-        let sentChallenge = "00344995EA30"
+        let challengeMock = "be16b3c1df6de38a49e14c2ea344987749670f15ac4aaf9d3f28bd6703e98dbe7a3e287268c02a600a9bd1fe2131dc69"
 
-        let challengeResponse = try await tagReader.executeAPDUCommands(stringCommand: "002A9E9A30$\(sentChallenge)00")
+        let challengeResponse = try await tagReader.executeAPDUCommands(stringCommand: "002A9E9A30\(challengeMock)00")
         var dataChallenge = Data()
         dataChallenge.append(contentsOf: [challengeResponse.sw1, challengeResponse.sw2])
 
