@@ -42,6 +42,31 @@ public class TagReader {
         return try await selectFileAndRead(tag: tag )
     }
     
+    func executeAPDUCommands(stringCommand : String) async throws -> ResponseAPDU{
+        
+        let command = NFCISO7816APDU(data: dataWithHexString(hex: stringCommand))
+        
+                
+        return try await send( cmd: command! )
+        
+        
+    }
+    
+    func dataWithHexString(hex: String) -> Data {
+        var hex = hex
+        var data = Data()
+        while hex.count > 0 {
+            let subIndex = hex.index(hex.startIndex, offsetBy: 2)
+            let c = String(hex[..<subIndex])
+            hex = String(hex[subIndex...])
+            var ch: UInt64 = 0
+            Scanner(string: c).scanHexInt64(&ch)
+            var char = UInt8(ch)
+            data.append(&char, count: 1)
+        }
+        return data
+    }
+    
     func getChallenge() async throws -> ResponseAPDU{
         let cmd : NFCISO7816APDU = NFCISO7816APDU(instructionClass: 00, instructionCode: 0x84, p1Parameter: 0, p2Parameter: 0, data: Data(), expectedResponseLength: 8)
         

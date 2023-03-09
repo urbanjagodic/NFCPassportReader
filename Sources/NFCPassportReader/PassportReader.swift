@@ -11,6 +11,9 @@ import Foundation
 #if !os(macOS)
 import UIKit
 import CoreNFC
+import Security
+
+typealias ByteArray = [UInt8]
 
 @available(iOS 15, *)
 public class PassportReader : NSObject {
@@ -225,6 +228,19 @@ extension PassportReader : NFCTagReaderSessionDelegate {
     }
 }
 
+extension Data {
+    struct HexEncodingOptions: OptionSet {
+        let rawValue: Int
+        static let upperCase = HexEncodingOptions(rawValue: 1 << 0)
+    }
+
+    func hexEncodedString(options: HexEncodingOptions = []) -> String {
+        let format = options.contains(.upperCase) ? "%02hhX" : "%02hhx"
+        return self.map { String(format: format, $0) }.joined()
+    }
+}
+
+
 @available(iOS 15, *)
 extension PassportReader {
     
@@ -268,14 +284,106 @@ extension PassportReader {
         // Now to read the datagroups
         try await readDataGroups(tagReader: tagReader)
         
+    
+        
+        let response = try await tagReader.executeAPDUCommands(stringCommand: "00A40000023F00")
+        var dataTest = Data()
+        dataTest.append(contentsOf: [response.sw1, response.sw2])
+        
+        print(dataTest.hexEncodedString())
+        
+        
+        
+        let response2 = try await tagReader.executeAPDUCommands(stringCommand: "00A4040C0AE828BD080F014E585030")
+        var dataTest2 = Data()
+        dataTest2.append(contentsOf: [response2.sw1, response2.sw2])
+        
+        print(dataTest2.hexEncodedString())
+        
+        
+        let pin = "123456"
+        let dataPin = Data(pin.utf8)
+        let hexPin = dataPin.map{ String(format:"%02x", $0) }.joined()
+        
+        
+        let response3 = try await tagReader.executeAPDUCommands(stringCommand: "0020000506\(hexPin)")
+        var dataTest3 = Data()
+        dataTest3.append(contentsOf: [response3.sw1, response3.sw2])
+        
+        print(dataTest3.hexEncodedString())
+        
+        
+        let response4 = try await tagReader.executeAPDUCommands(stringCommand: "002281B604910222A1")
+        var dataTest4 = Data()
+        dataTest4.append(contentsOf: [response4.sw1, response4.sw2])
+        
+        print("GOT DATA:" + dataTest4.hexEncodedString())
+        
+        
+        let response5 = try await tagReader.executeAPDUCommands(stringCommand: "00A4000002001D")
+        var dataTest5 = Data()
+        dataTest5.append(contentsOf: [response5.sw1, response5.sw2])
+        
+        print("GOT DATA Select Auth Certificate 001D:" + dataTest5.hexEncodedString())
+        
+        
+        
+        
+        // READING CERT DATA
+        
+        let certDataStream = NSMutableData()
+        let readLength = 200
+        var offset = 0
+        var readBuffer: ByteArray?
+        
+        while(true) {
+            
+            let command = "00B0" + String(format: "%04X", offset * readLength) + "C8"
+            let responseApduCert = try await tagReader.executeAPDUCommands(stringCommand: command)
+            
+            readBuffer = responseApduCert.data
+            certDataStream.append(readBuffer!, length: readBuffer!.count)
+            offset += 1
+            if (readBuffer!.count < readLength) {
+                break
+            }
+        }
+        
+        
+        let base64StringCert = (certDataStream as Data).base64EncodedString()
+        
+        print("GOT CERT: " + base64StringCert)
+        
+    
+                
+//        guard let sod = self.passport.getDataGroup(.SOD) else {
+//            throw PassiveAuthenticationError.SODMissing("No SOD found" )
+//        }
+//
+//
+//        let data = Data(sod.data)
+//        let cert = try OpenSSLUtils.getX509CertificatesFromPKCS7( pkcs7Der: data ).first!
+//
+//
+//        var certData : X509Wrapper? =  cert
+//
+//        print(certData!.getIssuerName())
+//        print(certData!.getSubjectName())
+//        print(certData!.certToPEM())
+        
+
+//        try await doActiveAuthenticationIfNeccessary(tagReader : tagReader)
+        
+        
+        
         self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.successfulRead)
 
-        try await doActiveAuthenticationIfNeccessary(tagReader : tagReader)
+        
         self.shouldNotReportNextReaderSessionInvalidationErrorUserCanceled = true
         self.readerSession?.invalidate()
 
         // If we have a masterlist url set then use that and verify the passport now
-        self.passport.verifyPassport(masterListURL: self.masterListURL, useCMSVerification: self.passiveAuthenticationUsesOpenSSL)
+//        self.passport.verifyPassport(masterListURL: self.masterListURL, useCMSVerification: self.passiveAuthenticationUsesOpenSSL)
 
         return self.passport
     }
