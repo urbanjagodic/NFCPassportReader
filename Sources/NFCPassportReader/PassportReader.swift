@@ -337,7 +337,13 @@ extension PassportReader {
         let challengeResponse = try await tagReader.executeAPDUCommands(stringCommand: "002A9E9A30\(challengeMock)00")
         var dataChallenge = Data()
         dataChallenge.append(contentsOf: [challengeResponse.sw1, challengeResponse.sw2])
+        
+        var signedChallengeData = Data()
+        signedChallengeData.append(contentsOf: challengeResponse.data)
+        
+        var signedChallengeHexString = hexString(data: signedChallengeData)
 
+        print("SIGNED CHALLENGE: \(signedChallengeHexString)")
         
         // READING CERT DATA
         
@@ -499,7 +505,7 @@ extension PassportReader {
     }
     
     func hexString(data: Data) -> String {
-        return data.map { String(format: "%02hhx", $0) }.joined()
+        return data.map { String(format: "%02x", $0) }.joined()
     }
     
 }
