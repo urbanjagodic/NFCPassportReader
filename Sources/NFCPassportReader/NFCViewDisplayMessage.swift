@@ -17,6 +17,7 @@ public enum NFCViewDisplayMessage {
     case readingCertificate
     case authenticatingWithPin
     case pinauthenticationSuccessful
+    case signingChallenge
 }
 
 @available(iOS 13, macOS 10.15, *)
@@ -54,7 +55,9 @@ extension NFCViewDisplayMessage {
                 return "Authenticating with PIN"
             case .pinauthenticationSuccessful:
                 return "PIN authnetication successful"
-            }
+            case .signingChallenge:
+                return "Signing challenge"
+        }
     }
     
     func handleProgress(percentualProgress: Int) -> String {

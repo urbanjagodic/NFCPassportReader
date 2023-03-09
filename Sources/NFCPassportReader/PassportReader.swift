@@ -303,6 +303,8 @@ extension PassportReader {
         print(dataTest2.hexEncodedString())
         
         
+        // Authenticating with PIN
+        
         let pin = "123456"
         let dataPin = Data(pin.utf8)
         let hexPin = dataPin.map{ String(format:"%02x", $0) }.joined()
@@ -326,16 +328,28 @@ extension PassportReader {
         print("GOT DATA:" + dataTest4.hexEncodedString())
         
         
+        // Signing challenge
+        
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.signingChallenge)
+        
+        let sentChallenge = "00344995EA30"
+
+        let challengeResponse = try await tagReader.executeAPDUCommands(stringCommand: "002A9E9A30$\(sentChallenge)00")
+        var dataChallenge = Data()
+        dataChallenge.append(contentsOf: [challengeResponse.sw1, challengeResponse.sw2])
+
+        
+        // READING CERT DATA
+        
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingCertificate)
+        
+        
         let response5 = try await tagReader.executeAPDUCommands(stringCommand: "00A4000002001D")
         var dataTest5 = Data()
         dataTest5.append(contentsOf: [response5.sw1, response5.sw2])
         
         print("GOT DATA Select Auth Certificate 001D:" + dataTest5.hexEncodedString())
-        
-        
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingCertificate)
-        
-        // READING CERT DATA
+
         
         let certDataStream = NSMutableData()
         let readLength = 200
@@ -361,35 +375,11 @@ extension PassportReader {
         print("GOT CERT: " + base64StringCert)
         
     
-                
-//        guard let sod = self.passport.getDataGroup(.SOD) else {
-//            throw PassiveAuthenticationError.SODMissing("No SOD found" )
-//        }
-//
-//
-//        let data = Data(sod.data)
-//        let cert = try OpenSSLUtils.getX509CertificatesFromPKCS7( pkcs7Der: data ).first!
-//
-//
-//        var certData : X509Wrapper? =  cert
-//
-//        print(certData!.getIssuerName())
-//        print(certData!.getSubjectName())
-//        print(certData!.certToPEM())
-        
-
-//        try await doActiveAuthenticationIfNeccessary(tagReader : tagReader)
-        
-        
-        
         self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.successfulRead)
 
         
         self.shouldNotReportNextReaderSessionInvalidationErrorUserCanceled = true
         self.readerSession?.invalidate()
-
-        // If we have a masterlist url set then use that and verify the passport now
-//        self.passport.verifyPassport(masterListURL: self.masterListURL, useCMSVerification: self.passiveAuthenticationUsesOpenSSL)
 
         return self.passport
     }
@@ -507,5 +497,10 @@ extension PassportReader {
         nfcContinuation?.resume(throwing: error)
         nfcContinuation = nil
     }
+    
+    func hexString(data: Data) -> String {
+        return data.map { String(format: "%02hhx", $0) }.joined()
+    }
+    
 }
 #endif
