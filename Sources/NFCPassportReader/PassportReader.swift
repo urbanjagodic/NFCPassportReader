@@ -188,7 +188,7 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 try await session.connect(to: tag)
                 
                 Log.debug( "tagReaderSession:connected to tag - starting authentication" )
-                self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport(0) )
+                self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport)
                 
                 let tagReader = TagReader(tag:passportTag)
                 
@@ -198,9 +198,9 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 
                 tagReader.progress = { [unowned self] (progress) in
                     if let dgId = self.currentlyReadingDataGroup {
-                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(progress) )
+                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUSerData)
                     } else {
-                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport(progress) )
+                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport)
                     }
                 }
                 
@@ -284,7 +284,9 @@ extension PassportReader {
         // Now to read the datagroups
         try await readDataGroups(tagReader: tagReader)
         
-    
+        
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.authenticatingWithPin)
+
         
         let response = try await tagReader.executeAPDUCommands(stringCommand: "00A40000023F00")
         var dataTest = Data()
@@ -313,6 +315,10 @@ extension PassportReader {
         print(dataTest3.hexEncodedString())
         
         
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.pinauthenticationSuccessful)
+
+        
+        
         let response4 = try await tagReader.executeAPDUCommands(stringCommand: "002281B604910222A1")
         var dataTest4 = Data()
         dataTest4.append(contentsOf: [response4.sw1, response4.sw2])
@@ -327,7 +333,7 @@ extension PassportReader {
         print("GOT DATA Select Auth Certificate 001D:" + dataTest5.hexEncodedString())
         
         
-        
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingCertificate)
         
         // READING CERT DATA
         
@@ -429,8 +435,8 @@ extension PassportReader {
         
         // Read only DG1
         var dataGroup1 = DataGroupId.DG1
-                
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(0))
+        
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingUSerData)
         if let dg = try await readDataGroup(tagReader:tagReader, dgId: dataGroup1) {
             self.passport.addDataGroup(dataGroup1, dataGroup:dg)
         }
@@ -442,7 +448,7 @@ extension PassportReader {
         Log.info( "Reading tag - \(dgId)" )
         var readAttempts = 0
         
-        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingDataGroupProgress(0) )
+        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUSerData)
 
         repeat {
             do {

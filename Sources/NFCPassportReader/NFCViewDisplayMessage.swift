@@ -10,10 +10,13 @@ import Foundation
 @available(iOS 13, macOS 10.15, *)
 public enum NFCViewDisplayMessage {
     case requestPresentPassport
-    case authenticatingWithPassport(Int)
-    case readingDataGroupProgress(Int)
+    case authenticatingWithPassport
+    case readingUSerData
     case error(NFCPassportReaderError)
     case successfulRead
+    case readingCertificate
+    case authenticatingWithPin
+    case pinauthenticationSuccessful
 }
 
 @available(iOS 13, macOS 10.15, *)
@@ -22,12 +25,12 @@ extension NFCViewDisplayMessage {
         switch self {
             case .requestPresentPassport:
                 return "Hold your iPhone near an NFC enabled passport."
-            case .authenticatingWithPassport(let progress):
-                let progressString = handleProgress(percentualProgress: progress)
-                return "Authenticating with passport.....\n\n\(progressString)"
-            case .readingDataGroupProgress(let progress):
-                let progressString = handleProgress(percentualProgress: progress)
-                return "Reading user data.....\n\n\(progressString)"
+            case .authenticatingWithPassport:
+//                let progressString = handleProgress(percentualProgress: progress)
+                return "Authenticating with passport ..."
+            case .readingUSerData:
+//                let progressString = handleProgress(percentualProgress: progress)
+                return "Reading user data ..."
             case .error(let tagError):
                 switch tagError {
                     case NFCPassportReaderError.TagNotValid:
@@ -44,8 +47,14 @@ extension NFCViewDisplayMessage {
                         return "Sorry, there was a problem reading the document. Please try again"
                 }
             case .successfulRead:
-                return "Identity card read successfully"
-        }
+                return "Identity document read successfully"
+            case .readingCertificate:
+                return "Reading user certificate"
+            case .authenticatingWithPin:
+                return "Authenticating with PIN"
+            case .pinauthenticationSuccessful:
+                return "PIN authnetication successful"
+            }
     }
     
     func handleProgress(percentualProgress: Int) -> String {
