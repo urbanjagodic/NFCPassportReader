@@ -101,6 +101,11 @@ public class NFCPassportModel {
         return com.dataGroupsPresent
     }()
     
+    
+    public private(set) var signedChallenge : String?
+    
+    public private(set) var certificateHex : String?
+    
     // Parsed datagroup hashes
     public private(set) var dataGroupsAvailable = [DataGroupId]()
     public private(set) var dataGroupsRead : [DataGroupId:DataGroup] = [:]
@@ -528,5 +533,13 @@ public class NFCPassportModel {
         Log.debug( "      - Hashes     - \(sodHashes)" )
         
         return (sodHashAlgo, sodHashes)
+    }
+    
+    public func addSignedChallenge(challenge : String) {
+        self.signedChallenge = challenge
+    }
+    
+    public func addUserCertificate(certificate : String) {
+        self.certificateHex = certificate
     }
 }

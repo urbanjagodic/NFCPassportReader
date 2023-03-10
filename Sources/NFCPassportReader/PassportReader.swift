@@ -349,6 +349,9 @@ extension PassportReader {
 
         print("SIGNED CHALLENGE: \(signedChallengeHexString)")
         
+        
+        self.passport.addSignedChallenge(challenge: signedChallengeHexString)
+        
         // READING CERT DATA
         
         self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingCertificate)
@@ -380,9 +383,13 @@ extension PassportReader {
         }
         
         
-        let base64StringCert = (certDataStream as Data).base64EncodedString()
+        //let base64StringCert = (certDataStream as Data).base64EncodedString()
         
-        print("GOT CERT: " + base64StringCert)
+        var certificateHexString = hexString(data: certDataStream as Data)
+        
+        print("GOT CERT in HEX: " + certificateHexString)
+        
+        self.passport.addUserCertificate(certificate: certificateHexString)
         
     
         self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.successfulRead)
