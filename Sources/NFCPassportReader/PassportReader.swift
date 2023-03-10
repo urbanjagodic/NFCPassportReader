@@ -298,17 +298,13 @@ extension PassportReader {
         let response = try await tagReader.executeAPDUCommands(stringCommand: "00A40000023F00")
         var dataTest = Data()
         dataTest.append(contentsOf: [response.sw1, response.sw2])
-        
-        print(dataTest.hexEncodedString())
-        
+                
         
         
         let response2 = try await tagReader.executeAPDUCommands(stringCommand: "00A4040C0AE828BD080F014E585030")
         var dataTest2 = Data()
         dataTest2.append(contentsOf: [response2.sw1, response2.sw2])
-        
-        print(dataTest2.hexEncodedString())
-        
+                
         
         // Authenticating with PIN
         
@@ -319,9 +315,7 @@ extension PassportReader {
         let response3 = try await tagReader.executeAPDUCommands(stringCommand: "0020000506\(hexPin)")
         var dataTest3 = Data()
         dataTest3.append(contentsOf: [response3.sw1, response3.sw2])
-        
-        print(dataTest3.hexEncodedString())
-        
+                
         
         self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.pinauthenticationSuccessful)
 
@@ -330,9 +324,7 @@ extension PassportReader {
         let response4 = try await tagReader.executeAPDUCommands(stringCommand: "002281B604910222A1")
         var dataTest4 = Data()
         dataTest4.append(contentsOf: [response4.sw1, response4.sw2])
-        
-        print("GOT DATA:" + dataTest4.hexEncodedString())
-        
+                
         
         // Signing challenge
         
@@ -346,8 +338,6 @@ extension PassportReader {
         signedChallengeData.append(contentsOf: challengeResponse.data)
         
         var signedChallengeHexString = hexString(data: signedChallengeData)
-
-        print("SIGNED CHALLENGE: \(signedChallengeHexString)")
         
         
         self.passport.addSignedChallenge(challenge: signedChallengeHexString)
@@ -361,8 +351,6 @@ extension PassportReader {
         var dataTest5 = Data()
         dataTest5.append(contentsOf: [response5.sw1, response5.sw2])
         
-        print("GOT DATA Select Auth Certificate 001D:" + dataTest5.hexEncodedString())
-
         
         let certDataStream = NSMutableData()
         let readLength = 200
@@ -382,16 +370,11 @@ extension PassportReader {
             }
         }
         
-        
         //let base64StringCert = (certDataStream as Data).base64EncodedString()
         
         var certificateHexString = hexString(data: certDataStream as Data)
         
-        print("GOT CERT in HEX: " + certificateHexString)
-        
         self.passport.addUserCertificate(certificate: certificateHexString)
-        
-    
         self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.successfulRead)
 
         
