@@ -36,6 +36,10 @@ public class PassportReader : NSObject {
     private var paceHandler : PACEHandler?
     private var accessKey: PACEAccessKey?
     private var dataAmountToReadOverride : Int? = nil
+
+    
+    private var pinNumber : String?
+    private var challenge : String?
     
     private var scanCompletedHandler: ((NFCPassportModel?, NFCPassportReaderError?)->())!
     private var nfcViewDisplayMessageHandler: ((NFCViewDisplayMessage) -> String?)?
@@ -77,12 +81,15 @@ public class PassportReader : NSObject {
         )
     }
 
-    public func readPassport( accessKey : PACEAccessKey, tags : [DataGroupId] = [], skipSecureElements : Bool = true, skipCA : Bool = false, skipPACE : Bool = false, customDisplayMessage : ((NFCViewDisplayMessage) -> String?)? = nil) async throws -> NFCPassportModel {
+    public func readPassport( accessKey : PACEAccessKey, pin : String? = nil, challenge: String? = nil, tags : [DataGroupId] = [], skipSecureElements : Bool = true, skipCA : Bool = false, skipPACE : Bool = false, customDisplayMessage : ((NFCViewDisplayMessage) -> String?)? = nil) async throws -> NFCPassportModel {
         
         self.passport = NFCPassportModel()
         self.accessKey = accessKey
         self.skipCA = skipCA
         self.skipPACE = skipPACE
+        
+        self.pinNumber = pin
+        self.challenge = challenge
         
         self.dataGroupsToRead.removeAll()
         self.dataGroupsToRead.append( contentsOf:tags)
@@ -305,8 +312,7 @@ extension PassportReader {
         
         // Authenticating with PIN
         
-        let pin = "123456"
-        let dataPin = Data(pin.utf8)
+        let dataPin = Data(self.pinNumber!.utf8)
         let hexPin = dataPin.map{ String(format:"%02x", $0) }.joined()
         
         
@@ -332,9 +338,7 @@ extension PassportReader {
         
         self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.signingChallenge)
         
-        let challengeMock = "be16b3c1df6de38a49e14c2ea344987749670f15ac4aaf9d3f28bd6703e98dbe7a3e287268c02a600a9bd1fe2131dc69"
-
-        let challengeResponse = try await tagReader.executeAPDUCommands(stringCommand: "002A9E9A30\(challengeMock)00")
+        let challengeResponse = try await tagReader.executeAPDUCommands(stringCommand: "002A9E9A30\(self.challenge!)00")
         var dataChallenge = Data()
         dataChallenge.append(contentsOf: [challengeResponse.sw1, challengeResponse.sw2])
         
