@@ -172,7 +172,7 @@ extension PassportReader : NFCTagReaderSessionDelegate {
         if tags.count > 1 {
             Log.debug( "tagReaderSession:more than 1 tag detected! - \(tags)" )
 
-            let errorMessage = NFCViewDisplayMessage.error(.MoreThanOneTagFound)
+            let errorMessage = NFCViewDisplayMessage.moreThanOneTagFound
             self.invalidateSession(errorMessage: errorMessage, error: NFCPassportReaderError.MoreThanOneTagFound)
             return
         }
@@ -185,7 +185,7 @@ extension PassportReader : NFCTagReaderSessionDelegate {
         default:
             Log.debug( "tagReaderSession:invalid tag detected!!!" )
 
-            let errorMessage = NFCViewDisplayMessage.error(NFCPassportReaderError.TagNotValid)
+            let errorMessage = NFCViewDisplayMessage.tagNotValid
             self.invalidateSession(errorMessage:errorMessage, error: NFCPassportReaderError.TagNotValid)
             return
         }
@@ -205,7 +205,7 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 
                 tagReader.progress = { [unowned self] (progress) in
                     if let dgId = self.currentlyReadingDataGroup {
-                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUSerData)
+                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUserData)
                     } else {
                         self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport)
                     }
@@ -214,9 +214,13 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 let passportModel = try await self.startReading( tagReader : tagReader)
                 nfcContinuation?.resume(returning: passportModel)
                 nfcContinuation = nil
-
                 
+            } catch NFCPassportReaderError.AuthenticationFailed {
+                
+                let errorMessage = NFCViewDisplayMessage.authenticationFailed
+                self.invalidateSession(errorMessage: errorMessage, error: NFCPassportReaderError.AuthenticationFailed)
             } catch let error as NFCPassportReaderError {
+                
                 let errorMessage = NFCViewDisplayMessage.error(error)
                 self.invalidateSession(errorMessage: errorMessage, error: error)
             } catch let error {
@@ -224,7 +228,7 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 nfcContinuation?.resume(throwing: error)
                 nfcContinuation = nil
                 Log.debug( "tagReaderSession:failed to connect to tag - \(error.localizedDescription)" )
-                let errorMessage = NFCViewDisplayMessage.error(NFCPassportReaderError.ConnectionError)
+                let errorMessage = NFCViewDisplayMessage.connectionError
                 self.invalidateSession(errorMessage: errorMessage, error: NFCPassportReaderError.ConnectionError)
             }
         }
@@ -426,7 +430,7 @@ extension PassportReader {
         // Read only DG1
         var dataGroup1 = DataGroupId.DG1
         
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingUSerData)
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingUserData)
         if let dg = try await readDataGroup(tagReader:tagReader, dgId: dataGroup1) {
             self.passport.addDataGroup(dataGroup1, dataGroup:dg)
         }
@@ -438,7 +442,7 @@ extension PassportReader {
         Log.info( "Reading tag - \(dgId)" )
         var readAttempts = 0
         
-        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUSerData)
+        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUserData)
 
         repeat {
             do {
