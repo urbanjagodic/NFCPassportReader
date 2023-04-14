@@ -12,6 +12,7 @@ import Foundation
 @available(iOS 13, macOS 10.15, *)
 public enum NFCPassportReaderError: Error {
     case ResponseError(String, UInt8, UInt8)
+    case InvalidPin(String)
     case InvalidResponse
     case UnexpectedError
     case NFCNotSupported
@@ -44,6 +45,7 @@ public enum NFCPassportReaderError: Error {
     var value: String {
         switch self {
             case .ResponseError(let errMsg, _, _): return errMsg
+            case .InvalidPin(let triesLeft): return triesLeft
             case .InvalidResponse: return "InvalidResponse"
             case .UnexpectedError: return "UnexpectedError"
             case .NFCNotSupported: return "NFCNotSupported"

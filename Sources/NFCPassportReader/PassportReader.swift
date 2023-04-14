@@ -42,7 +42,7 @@ public class PassportReader : NSObject {
     private var challenge : String?
     
     private var scanCompletedHandler: ((NFCPassportModel?, NFCPassportReaderError?)->())!
-    private var nfcViewDisplayMessageHandler: ((NFCViewDisplayMessage) -> String?)?
+    private var nfcViewDisplayMessageHandler: ((NFCViewDisplayMessage, String?) -> String?)?
     private var masterListURL : URL?
     private var shouldNotReportNextReaderSessionInvalidationErrorUserCanceled : Bool = false
 
@@ -70,7 +70,7 @@ public class PassportReader : NSObject {
     }
 
     @available(*, deprecated, message: "Use readPassport( accessKey: ...) instead")
-    public func readPassport( mrzKey : String, tags : [DataGroupId] = [], skipSecureElements : Bool = true, skipCA : Bool = false, skipPACE : Bool = false, customDisplayMessage : ((NFCViewDisplayMessage) -> String?)? = nil) async throws -> NFCPassportModel {
+    public func readPassport( mrzKey : String, tags : [DataGroupId] = [], skipSecureElements : Bool = true, skipCA : Bool = false, skipPACE : Bool = false, customDisplayMessage : ((NFCViewDisplayMessage, String?) -> String?)? = nil) async throws -> NFCPassportModel {
         try await readPassport(
             accessKey: .mrz(mrzKey),
             tags: tags,
@@ -81,7 +81,7 @@ public class PassportReader : NSObject {
         )
     }
 
-    public func readPassport( accessKey : PACEAccessKey, pin : String? = nil, challenge: String? = nil, tags : [DataGroupId] = [], skipSecureElements : Bool = true, skipCA : Bool = false, skipPACE : Bool = false, customDisplayMessage : ((NFCViewDisplayMessage) -> String?)? = nil) async throws -> NFCPassportModel {
+    public func readPassport( accessKey : PACEAccessKey, pin : String? = nil, challenge: String? = nil, tags : [DataGroupId] = [], skipSecureElements : Bool = true, skipCA : Bool = false, skipPACE : Bool = false, customDisplayMessage : ((NFCViewDisplayMessage, String?) -> String?)? = nil) async throws -> NFCPassportModel {
         
         self.passport = NFCPassportModel()
         self.accessKey = accessKey
@@ -117,7 +117,7 @@ public class PassportReader : NSObject {
         if NFCTagReaderSession.readingAvailable {
             readerSession = NFCTagReaderSession(pollingOption: [.iso14443], delegate: self, queue: nil)
             
-            self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.requestPresentPassport )
+            self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.requestPresentPassport, extraData: nil)
             readerSession?.begin()
         }
         
@@ -195,7 +195,7 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 try await session.connect(to: tag)
                 
                 Log.debug( "tagReaderSession:connected to tag - starting authentication" )
-                self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport)
+                self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport, extraData: nil)
                 
                 let tagReader = TagReader(tag:passportTag)
                 
@@ -205,9 +205,9 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 
                 tagReader.progress = { [unowned self] (progress) in
                     if let dgId = self.currentlyReadingDataGroup {
-                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUserData)
+                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUserData, extraData: nil)
                     } else {
-                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport)
+                        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.authenticatingWithPassport, extraData: nil)
                     }
                 }
                 
@@ -219,6 +219,10 @@ extension PassportReader : NFCTagReaderSessionDelegate {
                 
                 let errorMessage = NFCViewDisplayMessage.authenticationFailed
                 self.invalidateSession(errorMessage: errorMessage, error: NFCPassportReaderError.AuthenticationFailed)
+            } catch NFCPassportReaderError.InvalidPin(let pinTriesLeft) {
+                
+                let errorMessage = NFCViewDisplayMessage.invalidPin(pinTriesLeft)
+                self.invalidateSessionWithExtraData(errorMessage: errorMessage, extraData: pinTriesLeft, error: NFCPassportReaderError.InvalidPin(pinTriesLeft))
             } catch let error as NFCPassportReaderError {
                 
                 let errorMessage = NFCViewDisplayMessage.error(error)
@@ -234,8 +238,8 @@ extension PassportReader : NFCTagReaderSessionDelegate {
         }
     }
     
-    func updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage ) {
-        self.readerSession?.alertMessage = self.nfcViewDisplayMessageHandler?(alertMessage) ?? alertMessage.description
+    func updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage, extraData: String?) {
+        self.readerSession?.alertMessage = self.nfcViewDisplayMessageHandler?(alertMessage, extraData) ?? alertMessage.description
     }
 }
 
@@ -296,7 +300,7 @@ extension PassportReader {
         try await readDataGroups(tagReader: tagReader)
         
         
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.authenticatingWithPin)
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.authenticatingWithPin, extraData: nil)
 
         
         let response = try await tagReader.executeAPDUCommands(stringCommand: "00A40000023F00")
@@ -321,7 +325,7 @@ extension PassportReader {
         dataTest3.append(contentsOf: [response3.sw1, response3.sw2])
                 
         
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.pinauthenticationSuccessful)
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.pinauthenticationSuccessful, extraData: nil)
 
         
         
@@ -332,7 +336,7 @@ extension PassportReader {
         
         // Signing challenge
         
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.signingChallenge)
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.signingChallenge, extraData: nil)
         
         let challengeResponse = try await tagReader.executeAPDUCommands(stringCommand: "002A9E9A30\(self.challenge!)00")
         var dataChallenge = Data()
@@ -348,7 +352,7 @@ extension PassportReader {
         
         // READING CERT DATA
         
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingCertificate)
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingCertificate, extraData: nil)
         
         
         let response5 = try await tagReader.executeAPDUCommands(stringCommand: "00A4000002001D")
@@ -379,7 +383,7 @@ extension PassportReader {
         var certificateHexString = hexString(data: certDataStream as Data)
         
         self.passport.addUserCertificate(certificate: certificateHexString)
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.successfulRead)
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.successfulRead, extraData: nil)
 
         
         self.shouldNotReportNextReaderSessionInvalidationErrorUserCanceled = true
@@ -430,7 +434,7 @@ extension PassportReader {
         // Read only DG1
         var dataGroup1 = DataGroupId.DG1
         
-        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingUserData)
+        self.updateReaderSessionMessage(alertMessage: NFCViewDisplayMessage.readingUserData, extraData: nil)
         if let dg = try await readDataGroup(tagReader:tagReader, dgId: dataGroup1) {
             self.passport.addDataGroup(dataGroup1, dataGroup:dg)
         }
@@ -442,7 +446,7 @@ extension PassportReader {
         Log.info( "Reading tag - \(dgId)" )
         var readAttempts = 0
         
-        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUserData)
+        self.updateReaderSessionMessage( alertMessage: NFCViewDisplayMessage.readingUserData, extraData: nil)
 
         repeat {
             do {
@@ -497,7 +501,17 @@ extension PassportReader {
         // Mark the next 'invalid session' error as not reportable (we're about to cause it by invalidating the
         // session). The real error is reported back with the call to the completed handler
         self.shouldNotReportNextReaderSessionInvalidationErrorUserCanceled = true
-        self.readerSession?.invalidate(errorMessage: self.nfcViewDisplayMessageHandler?(errorMessage) ?? errorMessage.description)
+        self.readerSession?.invalidate(errorMessage: self.nfcViewDisplayMessageHandler?(errorMessage, nil) ?? errorMessage.description)
+        nfcContinuation?.resume(throwing: error)
+        nfcContinuation = nil
+    }
+    
+    
+    func invalidateSessionWithExtraData(errorMessage: NFCViewDisplayMessage, extraData: String, error: NFCPassportReaderError) {
+        // Mark the next 'invalid session' error as not reportable (we're about to cause it by invalidating the
+        // session). The real error is reported back with the call to the completed handler
+        self.shouldNotReportNextReaderSessionInvalidationErrorUserCanceled = true
+        self.readerSession?.invalidate(errorMessage: self.nfcViewDisplayMessageHandler?(errorMessage, extraData) ?? errorMessage.description)
         nfcContinuation?.resume(throwing: error)
         nfcContinuation = nil
     }

@@ -293,9 +293,16 @@ public class TagReader {
             
         }
 
-        if rep.sw1 == 0x63 && rep.sw2 == 0x00 {
-            Log.error( "TagReader - Authentication failed" )
-            throw NFCPassportReaderError.AuthenticationFailed
+        if rep.sw1 == 0x63 {
+            if rep.sw2 == 0x00 {
+                Log.error("TagReader - Authentication failed")
+                throw NFCPassportReaderError.AuthenticationFailed
+            } else {
+                Log.error("TagReader - Invalid pin used.")
+                let pinTriesLeft : String = String(binToHexRep(sw2).last!)
+                throw NFCPassportReaderError.InvalidPin(pinTriesLeft)
+            }
+            
         } else if rep.sw1 != 0x90 && rep.sw2 != 0x00 {
             Log.error( "Error reading tag: sw1 - 0x\(binToHexRep(sw1)), sw2 - 0x\(binToHexRep(sw2))" )
             let errorMsg = self.decodeError(sw1: rep.sw1, sw2: rep.sw2)
