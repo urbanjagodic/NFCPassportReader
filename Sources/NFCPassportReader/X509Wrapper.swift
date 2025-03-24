@@ -29,11 +29,12 @@ public enum CertificateItem : String {
 public class X509Wrapper {
     public let cert : OpaquePointer
     
-    public init?( with cert: OpaquePointer? ) {
-        guard let cert = cert else { return nil }
-        
-        self.cert = X509_dup(cert)
+    public init?(with cert: OpaquePointer?) {
+            guard let cert = cert else { return nil }
+            guard let duplicated = X509_dup(cert) else { return nil }
+            self.cert = duplicated
     }
+
     
     public func getItemsAsDict() -> [CertificateItem:String] {
         var item = [CertificateItem:String]()
